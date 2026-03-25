@@ -31,3 +31,14 @@ The specific configuration of the machine on which I am running these scripts is
 1. CPU: AMD Ryzen 9 7900X 12-Core Processor, 24 vCPU
 2. GPU: RTX 4080 Super
 3. Memory: 64 GB RAM
+
+
+## Model performance
+
+As of Mar 24, 2026, here is the current performance of the models on the Fashion MNIST dataset:
+
+1. The basic CNN model in `fashion_mnist.py` script has accuracy generally in the range of 92.4% - 92.6%.
+2. The CNN model with multi-head attention in `fashion_mnist_multi_attn.py` script achieves accuracy in the range of 93.3% - 93.5%.
+3. The CNN model with single-head attention in `fashion_mnist_attn.py` script accuracy falls in between these two ranges.
+
+The goal is to continue refining the multi-head attention model to improve its accuracy beyond the 95% range.

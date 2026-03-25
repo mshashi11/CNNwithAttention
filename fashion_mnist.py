@@ -80,7 +80,7 @@ def main():
     test_loader = common.get_testing_data_loader()
 
     cnn_model = CNNImageClassifier().to(device)
-    train_model(cnn_model, train_loader, device, num_epochs=30)
+    train_model(cnn_model, train_loader, device, num_epochs=40)
 
     test_accuracy = common.evaluate_accuracy(cnn_model, test_loader, device)
     print(f"Model accuracy on test data = {test_accuracy*100:.2f}%")
