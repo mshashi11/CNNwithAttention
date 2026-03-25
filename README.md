@@ -42,3 +42,16 @@ As of Mar 24, 2026, here is the current performance of the models on the Fashion
 3. The CNN model with single-head attention in `fashion_mnist_attn.py` script accuracy falls in between these two ranges.
 
 The goal is to continue refining the multi-head attention model to improve its accuracy beyond the 95% range.
+
+## Model updates
+
+### Mar 25, 2026
+
+Changes incorporated:
+
+1. Included a Global Transformer Block for feature extraction as the last layer of CNN, in addition to the multi-head attention layers
+2. Using only a two-layer feed-forward network for the classification layer
+3. Incorporated `label_smoothing` with value 0.1 for the cross-entropy loss function in model training
+4. Increased the number of epochs to 60
+
+With these changes, the resulting accuracy on test dataset is now 93.9%, the highest we have been able to achieve so far.

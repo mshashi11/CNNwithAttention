@@ -66,6 +66,39 @@ class MultiHeadAttentionPool2d(nn.Module):
         return self.norm(out + self.skip(x))
 
 
+class GlobalTransformerBlock(nn.Module):
+    """
+    Final reasoning layer: Every 7x7 patch talks to every other patch.
+    """
+    def __init__(self, channels: int, heads: int = 8):
+        super().__init__()
+        # PyTorch's optimized MultiheadAttention
+        self.mha = nn.MultiheadAttention(embed_dim=channels, num_heads=heads, batch_first=True)
+        self.norm1 = nn.LayerNorm(channels)
+        self.ffn = nn.Sequential(
+            nn.Linear(channels, channels * 4),
+            nn.GELU(),
+            nn.Linear(channels * 4, channels)
+        )
+        self.norm2 = nn.LayerNorm(channels)
+
+    def forward(self, x):
+        B, C, H, W = x.shape
+        # Reshape image to sequence: [B, 49, C]
+        x_flat = x.view(B, C, -1).permute(0, 2, 1)
+
+        # Attention + Residual
+        attn_out, _ = self.mha(x_flat, x_flat, x_flat)
+        x_flat = self.norm1(x_flat + attn_out)
+
+        # Feed Forward + Residual
+        ffn_out = self.ffn(x_flat)
+        x_flat = self.norm2(x_flat + ffn_out)
+
+        # Back to image shape: [B, C, 7, 7]
+        return x_flat.permute(0, 2, 1).view(B, C, H, W)
+
+
 class CNNImageClassifier(nn.Module):
     "Implementation of CNN model with Multi-Head Attention Mechanism"
     def __init__(self, num_classes=10):
@@ -77,18 +110,18 @@ class CNNImageClassifier(nn.Module):
 
             nn.Conv2d(32, 64, 3, padding=1),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(64, 14, 14, heads=8)
+            MultiHeadAttentionPool2d(64, 14, 14, heads=8),
+
+            # Reasoning Global Block
+            GlobalTransformerBlock(64, heads=8)
         )
         self.network = nn.Sequential(
             nn.Flatten(),
             nn.Linear(7*7*64, 256),
             nn.BatchNorm1d(256),
-            nn.Dropout(0.10),
+            nn.Dropout(0.20),
             nn.ReLU(),
-            nn.Linear(256, 128),
-            nn.Dropout(0.10),
-            nn.ReLU(),
-            nn.Linear(128, num_classes)
+            nn.Linear(256, 10)
         )
 
     def forward(self, x):
@@ -98,12 +131,12 @@ class CNNImageClassifier(nn.Module):
 
 def train_model(model, train_loader, device, num_epochs: int = 10):
     "Implementation of the model training for CNN with Multi-Head Attention Mechanism"
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
 
     # CosineAnnealingLR: Gradually reduces LR to a minimum (eta_min) over T_max epochs
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30, eta_min=1e-6)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=60, eta_min=1e-6)
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     for epoch in range(num_epochs):
         model.train()
@@ -126,7 +159,7 @@ def main():
 
     model = CNNImageClassifier().to(device)
     train_loader = common.get_training_data_loader()
-    train_model(model, train_loader, device, num_epochs=40)
+    train_model(model, train_loader, device, num_epochs=60)
 
     # Evaluate on test set
     test_loader = common.get_testing_data_loader()
