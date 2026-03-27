@@ -110,15 +110,15 @@ class CNNImageClassifier(nn.Module):
             nn.Conv2d(1, 48, 3, padding=1),
             nn.BatchNorm2d(48),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(48, 28, 28, heads=6),
+            MultiHeadAttentionPool2d(48, 28, 28, heads=8),
 
             nn.Conv2d(48, 96, 3, padding=1),
             nn.BatchNorm2d(96),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(96, 14, 14, heads=12),
+            MultiHeadAttentionPool2d(96, 14, 14, heads=16),
 
             # Reasoning Global Block
-            GlobalTransformerBlock(96, heads=12)
+            GlobalTransformerBlock(96, heads=16)
         )
         self.network = nn.Sequential(
             nn.Flatten(),
@@ -141,6 +141,10 @@ def train_model(model, train_loader, device, num_epochs: int = 10, time_budget_s
 
     # CosineAnnealingLR: Gradually reduces LR to a minimum (eta_min) over T_max epochs
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=60, eta_min=1e-6)
+    
+    # LR Warmup
+    warmup_epochs = 5
+    lr_step = 0.001 / warmup_epochs
 
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
@@ -157,6 +161,11 @@ def train_model(model, train_loader, device, num_epochs: int = 10, time_budget_s
             loss.backward()
             optimizer.step()
             cur_time = time.time()
+            
+            # LR Warmup adjustment
+            if epoch < warmup_epochs:
+                optimizer.param_groups[0]['lr'] = lr_step * (epoch + 1)
+            
             if batch_idx % 100 == 0:
                 print(f"Epoch {epoch} | Batch {batch_idx} | Time so far: {cur_time - start_time:.2f}s")
             batch_idx += 1
@@ -175,7 +184,7 @@ def main():
     print(f"Device: {device}")
 
     model = CNNImageClassifier().to(device)
-    train_loader = common.get_training_data_loader()
+    train_loader = common.get_training_data_loader(batch_size=512)
     start_time = time.time()
     train_model(model, train_loader, device, num_epochs=60, time_budget_sec=600)
     end_time = time.time()
