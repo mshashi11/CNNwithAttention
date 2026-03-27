@@ -108,10 +108,12 @@ class CNNImageClassifier(nn.Module):
         super().__init__()
         self.features = nn.Sequential(
             nn.Conv2d(1, 48, 3, padding=1),
+            nn.BatchNorm2d(48),
             nn.ReLU(),
             MultiHeadAttentionPool2d(48, 28, 28, heads=6),
 
             nn.Conv2d(48, 96, 3, padding=1),
+            nn.BatchNorm2d(96),
             nn.ReLU(),
             MultiHeadAttentionPool2d(96, 14, 14, heads=12),
 
