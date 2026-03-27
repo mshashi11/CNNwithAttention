@@ -71,15 +71,17 @@ class GlobalTransformerBlock(nn.Module):
     """
     Final reasoning layer: Every 7x7 patch talks to every other patch.
     """
-    def __init__(self, channels: int, heads: int = 8):
+    def __init__(self, channels: int, heads: int = 8, dropout: float = 0.1):
         super().__init__()
         # PyTorch's optimized MultiheadAttention
-        self.mha = nn.MultiheadAttention(embed_dim=channels, num_heads=heads, batch_first=True)
+        self.mha = nn.MultiheadAttention(embed_dim=channels, num_heads=heads, batch_first=True, dropout=dropout)
         self.norm1 = nn.LayerNorm(channels)
         self.ffn = nn.Sequential(
             nn.Linear(channels, channels * 4),
             nn.GELU(),
-            nn.Linear(channels * 4, channels)
+            nn.Dropout(dropout),
+            nn.Linear(channels * 4, channels),
+            nn.Dropout(dropout)
         )
         self.norm2 = nn.LayerNorm(channels)
 
@@ -88,13 +90,13 @@ class GlobalTransformerBlock(nn.Module):
         # Reshape image to sequence: [B, 49, C]
         x_flat = x.view(B, C, -1).permute(0, 2, 1)
 
-        # Attention + Residual
-        attn_out, _ = self.mha(x_flat, x_flat, x_flat)
-        x_flat = self.norm1(x_flat + attn_out)
+        # Attention + Residual (Pre-Norm)
+        attn_out, _ = self.mha(self.norm1(x_flat), self.norm1(x_flat), self.norm1(x_flat))
+        x_flat = x_flat + attn_out
 
-        # Feed Forward + Residual
-        ffn_out = self.ffn(x_flat)
-        x_flat = self.norm2(x_flat + ffn_out)
+        # Feed Forward + Residual (Pre-Norm)
+        ffn_out = self.ffn(self.norm2(x_flat))
+        x_flat = x_flat + ffn_out
 
         # Back to image shape: [B, C, 7, 7]
         return x_flat.permute(0, 2, 1).view(B, C, H, W)
