@@ -45,13 +45,15 @@ The goal is to continue refining the multi-head attention model to improve its a
 
 ## Model updates
 
-### Mar 25, 2026
+### Mar 26, 2026 (Exp 6)
 
 Changes incorporated:
 
-1. Included a Global Transformer Block for feature extraction as the last layer of CNN, in addition to the multi-head attention layers
-2. Using only a two-layer feed-forward network for the classification layer
-3. Incorporated `label_smoothing` with value 0.1 for the cross-entropy loss function in model training
-4. Increased the number of epochs to 60
+1. Increased the number of channels in CNN layers from (32, 64) to (48, 96).
+2. Increased the classification head capacity from 256 to 512 units.
+3. Switched from ReLU to GELU activation in the final classification head.
+4. Corrected the training loop to include `scheduler.step()`.
+5. Switched to Pre-Norm architecture in `GlobalTransformerBlock` for better training stability.
+6. Added Dropout (0.1) in `GlobalTransformerBlock`.
 
-With these changes, the resulting accuracy on test dataset is now 93.9%, the highest we have been able to achieve so far.
+With these changes, the resulting accuracy on test dataset is now 94.55%, the highest achieved so far.
