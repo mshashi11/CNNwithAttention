@@ -45,15 +45,11 @@ The goal is to continue refining the multi-head attention model to improve its a
 
 ## Model updates
 
-### Mar 26, 2026 (Exp 6)
+### Mar 27, 2026 (Exp 7)
 
 Changes incorporated:
+1. Added `BatchNorm2d` after `Conv2d` layers in the feature extraction pipeline for improved training stability.
+2. Maintained previous successful configurations: channels (48, 96), classification head (512 units with GELU activation), Pre-Norm architecture and Dropout (0.1) in `GlobalTransformerBlock`.
+3. Corrected the training loop to include `scheduler.step()`.
 
-1. Increased the number of channels in CNN layers from (32, 64) to (48, 96).
-2. Increased the classification head capacity from 256 to 512 units.
-3. Switched from ReLU to GELU activation in the final classification head.
-4. Corrected the training loop to include `scheduler.step()`.
-5. Switched to Pre-Norm architecture in `GlobalTransformerBlock` for better training stability.
-6. Added Dropout (0.1) in `GlobalTransformerBlock`.
-
-With these changes, the resulting accuracy on test dataset is now 94.55%, the highest achieved so far.
+With these changes, the resulting accuracy on test dataset is now 94.65%, the highest achieved so far.
