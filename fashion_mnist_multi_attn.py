@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 "Implementation of CNN model with Multi-Head Attention Mechanism for Fashion MNIST dataset"
 
+import time
 import torch
 from torch import nn
 
@@ -121,7 +122,7 @@ class CNNImageClassifier(nn.Module):
             nn.BatchNorm1d(256),
             nn.Dropout(0.20),
             nn.ReLU(),
-            nn.Linear(256, 10)
+            nn.Linear(256, num_classes)
         )
 
     def forward(self, x):
@@ -129,8 +130,9 @@ class CNNImageClassifier(nn.Module):
         return self.network(self.features(x))
 
 
-def train_model(model, train_loader, device, num_epochs: int = 10):
+def train_model(model, train_loader, device, num_epochs: int = 10, time_budget_sec=600):
     "Implementation of the model training for CNN with Multi-Head Attention Mechanism"
+    start_time = time.time()
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
 
     # CosineAnnealingLR: Gradually reduces LR to a minimum (eta_min) over T_max epochs
@@ -149,6 +151,12 @@ def train_model(model, train_loader, device, num_epochs: int = 10):
             epoch_loss += loss.item()
             loss.backward()
             optimizer.step()
+            cur_time = time.time()
+            # Check if the time budget has expired
+            if cur_time - start_time >= time_budget_sec:
+                print("Exiting training since training time budget exceeded")
+                return
+
         print(f"Epoch: {epoch} | Loss: {epoch_loss:.2f}")
 
 
@@ -159,12 +167,15 @@ def main():
 
     model = CNNImageClassifier().to(device)
     train_loader = common.get_training_data_loader()
-    train_model(model, train_loader, device, num_epochs=60)
+    start_time = time.time()
+    train_model(model, train_loader, device, num_epochs=60, time_budget_sec=600)
+    end_time = time.time()
 
     # Evaluate on test set
     test_loader = common.get_testing_data_loader()
     test_acc = common.evaluate_accuracy(model, test_loader, device)
-    print(f"Accuracy on test data: {test_acc*100:.2f}%")
+    print("---Summary---")
+    print(f"Accuracy: {test_acc*100:.2f} | Time (sec): {(end_time - start_time):.2f}")
 
 
 if __name__ == '__main__':
