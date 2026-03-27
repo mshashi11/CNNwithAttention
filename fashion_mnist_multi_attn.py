@@ -143,6 +143,7 @@ def train_model(model, train_loader, device, num_epochs: int = 10, time_budget_s
     for epoch in range(num_epochs):
         model.train()
         epoch_loss = 0
+        batch_idx = 0
         for batch_x, batch_y in train_loader:
             batch_x, batch_y = batch_x.to(device), batch_y.to(device)
             optimizer.zero_grad()
@@ -152,11 +153,15 @@ def train_model(model, train_loader, device, num_epochs: int = 10, time_budget_s
             loss.backward()
             optimizer.step()
             cur_time = time.time()
+            if batch_idx % 100 == 0:
+                print(f"Epoch {epoch} | Batch {batch_idx} | Time so far: {cur_time - start_time:.2f}s")
+            batch_idx += 1
             # Check if the time budget has expired
             if cur_time - start_time >= time_budget_sec:
                 print("Exiting training since training time budget exceeded")
                 return
 
+        scheduler.step()
         print(f"Epoch: {epoch} | Loss: {epoch_loss:.2f}")
 
 
@@ -175,7 +180,7 @@ def main():
     test_loader = common.get_testing_data_loader()
     test_acc = common.evaluate_accuracy(model, test_loader, device)
     print("---Summary---")
-    print(f"Accuracy: {test_acc*100:.2f} | Time (sec): {(end_time - start_time):.2f}")
+    print(f"Accuracy: {test_acc*100:.2f}\nTime: {(end_time - start_time):.2f}")
 
 
 if __name__ == '__main__':
