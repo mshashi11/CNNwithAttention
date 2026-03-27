@@ -105,24 +105,24 @@ class CNNImageClassifier(nn.Module):
     def __init__(self, num_classes=10):
         super().__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 32, 3, padding=1),
+            nn.Conv2d(1, 48, 3, padding=1),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(32, 28, 28, heads=4),
+            MultiHeadAttentionPool2d(48, 28, 28, heads=6),
 
-            nn.Conv2d(32, 64, 3, padding=1),
+            nn.Conv2d(48, 96, 3, padding=1),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(64, 14, 14, heads=8),
+            MultiHeadAttentionPool2d(96, 14, 14, heads=12),
 
             # Reasoning Global Block
-            GlobalTransformerBlock(64, heads=8)
+            GlobalTransformerBlock(96, heads=12)
         )
         self.network = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(7*7*64, 256),
-            nn.BatchNorm1d(256),
+            nn.Linear(7*7*96, 512),
+            nn.BatchNorm1d(512),
             nn.Dropout(0.20),
-            nn.ReLU(),
-            nn.Linear(256, num_classes)
+            nn.GELU(),
+            nn.Linear(512, num_classes)
         )
 
     def forward(self, x):
