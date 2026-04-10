@@ -20,7 +20,7 @@ class MultiHeadAttentionPool2d(nn.Module):
 
         # 2. Multi-Head Projections
         # Q reduces spatial size (stride=2), K and V stay at full resolution
-        self.q_conv = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
+        self.q_conv = nn.Conv2d(channels, channels, kernel_size=2, stride=2)
         self.k_conv = nn.Conv2d(channels, channels, kernel_size=1)
         self.v_conv = nn.Conv2d(channels, channels, kernel_size=1)
 
@@ -104,24 +104,22 @@ class CNNImageClassifier(nn.Module):
     def __init__(self, num_classes=10):
         super().__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 48, 3, padding=1),
-            nn.BatchNorm2d(48),
+            nn.Conv2d(1, 56, 3, padding=1),
+            nn.BatchNorm2d(56),
             nn.ReLU(),
-            nn.Dropout2d(0.1),
-            MultiHeadAttentionPool2d(48, 28, 28, heads=8),
+            MultiHeadAttentionPool2d(56, 28, 28, heads=8),
 
-            nn.Conv2d(48, 96, 3, padding=1),
-            nn.BatchNorm2d(96),
+            nn.Conv2d(56, 112, 3, padding=1),
+            nn.BatchNorm2d(112),
             nn.ReLU(),
-            nn.Dropout2d(0.1),
-            MultiHeadAttentionPool2d(96, 14, 14, heads=16),
+            MultiHeadAttentionPool2d(112, 14, 14, heads=16),
 
             # Reasoning Global Block
-            GlobalTransformerBlock(96, heads=16)
+            GlobalTransformerBlock(112, heads=16)
         )
         self.network = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(7*7*96, 512),
+            nn.Linear(7*7*112, 512),
             nn.BatchNorm1d(512),
             nn.Dropout(0.20),
             nn.GELU(),
