@@ -25,7 +25,7 @@ class MultiHeadAttentionPool2d(nn.Module):
         self.v_conv = nn.Conv2d(channels, channels, kernel_size=1)
 
         self.out_conv = nn.Conv2d(channels, channels, kernel_size=1)
-        self.norm = nn.GroupNorm(num_groups=1, num_channels=channels)
+        self.norm = nn.BatchNorm2d(channels) # Changed from GroupNorm
         self.skip = nn.AvgPool2d(kernel_size=2)
 
         self.scale = self.head_dim ** -0.5
@@ -109,6 +109,9 @@ class CNNImageClassifier(nn.Module):
             nn.Conv2d(1, 48, 3, padding=1),
             nn.BatchNorm2d(48),
             nn.ReLU(),
+            nn.Conv2d(48, 48, 3, padding=1), # Added layer
+            nn.BatchNorm2d(48),
+            nn.ReLU(),
             MultiHeadAttentionPool2d(48, 28, 28, heads=8),
 
             nn.Conv2d(48, 96, 3, padding=1),
@@ -116,13 +119,13 @@ class CNNImageClassifier(nn.Module):
             nn.ReLU(),
             MultiHeadAttentionPool2d(96, 14, 14, heads=16),
 
-            # Reasoning Global Block with more heads
-            GlobalTransformerBlock(96, heads=32)
+            # Reasoning Global Block
+            GlobalTransformerBlock(96, heads=16)
         )
         self.network = nn.Sequential(
             nn.Flatten(),
             nn.Linear(7*7*96, 512),
-            nn.LayerNorm(512),
+            nn.BatchNorm1d(512),
             nn.Dropout(0.20),
             nn.GELU(),
             nn.Linear(512, num_classes)
