@@ -7,26 +7,9 @@ from torch import nn
 
 import common
 
-class SEBlock(nn.Module):
-    def __init__(self, channels, reduction=16):
-        super().__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Sequential(
-            nn.Linear(channels, max(1, channels // reduction), bias=False),
-            nn.ReLU(inplace=True),
-            nn.Linear(max(1, channels // reduction), channels, bias=False),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x):
-        b, c, _, _ = x.size()
-        y = self.avg_pool(x).view(b, c)
-        y = self.fc(y).view(b, c, 1, 1)
-        return x * y.expand_as(x)
-
 class MultiHeadAttentionPool2d(nn.Module):
     "Implementation of multi-head attention mechanism for CNN"
-    def __init__(self, channels: int, height: int, width: int, heads: int = 8):
+    def __init__(self, channels: int, height: int, width: int, heads: int = 8, dropout: float = 0.1):
         super().__init__()
         self.heads = heads
         self.head_dim = channels // heads
@@ -36,12 +19,13 @@ class MultiHeadAttentionPool2d(nn.Module):
         self.pos_embed = nn.Parameter(torch.randn(1, channels, height, width) * 0.02)
 
         # 2. Multi-Head Projections
-        # Q reduces spatial size (stride=2), K and V stay at full resolution
         self.q_conv = nn.Conv2d(channels, channels, kernel_size=2, stride=2)
         self.k_conv = nn.Conv2d(channels, channels, kernel_size=1)
         self.v_conv = nn.Conv2d(channels, channels, kernel_size=1)
 
         self.out_conv = nn.Conv2d(channels, channels, kernel_size=1)
+        self.attn_dropout = nn.Dropout(dropout)
+        self.proj_dropout = nn.Dropout(dropout)
         self.norm = nn.GroupNorm(num_groups=1, num_channels=channels)
         self.skip = nn.AvgPool2d(kernel_size=2)
 
@@ -62,9 +46,6 @@ class MultiHeadAttentionPool2d(nn.Module):
         N_in = H * W
 
         # Reshape for multi-head attention
-        # Q: [B, heads, N_out, head_dim]
-        # K: [B, heads, head_dim, N_in]
-        # V: [B, heads, N_out, head_dim]
         Q = Q.view(B, self.heads, self.head_dim, N_out).permute(0, 1, 3, 2)
         K = K.view(B, self.heads, self.head_dim, N_in)
         V = V.view(B, self.heads, self.head_dim, N_in).permute(0, 1, 3, 2)
@@ -72,13 +53,14 @@ class MultiHeadAttentionPool2d(nn.Module):
         # Scaled Dot-Product Attention
         attn = torch.matmul(Q, K) * self.scale # [B, heads, N_out, N_in]
         attn = torch.softmax(attn, dim=-1)
+        attn = self.attn_dropout(attn)
 
         # Weighted sum of values
         out = torch.matmul(attn, V) # [B, heads, N_out, head_dim]
 
         # Re-assemble heads
         out = out.permute(0, 1, 3, 2).contiguous().view(B, C, H_out, W_out)
-        out = self.out_conv(out)
+        out = self.proj_dropout(self.out_conv(out))
 
         # Residual + Norm
         return self.norm(out + self.skip(x))
@@ -126,13 +108,11 @@ class CNNImageClassifier(nn.Module):
         self.features = nn.Sequential(
             nn.Conv2d(1, 48, 3, padding=1),
             nn.BatchNorm2d(48),
-            SEBlock(48),
             nn.ReLU(),
             MultiHeadAttentionPool2d(48, 28, 28, heads=8),
 
             nn.Conv2d(48, 96, 3, padding=1),
             nn.BatchNorm2d(96),
-            SEBlock(96),
             nn.ReLU(),
             MultiHeadAttentionPool2d(96, 14, 14, heads=16),
 
@@ -157,7 +137,7 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
     "Implementation of the model training for CNN with Multi-Head Attention Mechanism"
     start_time = time.time()
     initial_lr = 0.001
-    optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.05)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.01)
 
     # CosineAnnealingLR: Gradually reduces LR to a minimum (eta_min) over T_max epochs
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
