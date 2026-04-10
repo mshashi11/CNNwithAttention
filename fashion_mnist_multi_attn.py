@@ -7,9 +7,26 @@ from torch import nn
 
 import common
 
+class SEBlock(nn.Module):
+    def __init__(self, channels, reduction=16):
+        super().__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Sequential(
+            nn.Linear(channels, max(1, channels // reduction), bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(max(1, channels // reduction), channels, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        b, c, _, _ = x.size()
+        y = self.avg_pool(x).view(b, c)
+        y = self.fc(y).view(b, c, 1, 1)
+        return x * y.expand_as(x)
+
 class MultiHeadAttentionPool2d(nn.Module):
     "Implementation of multi-head attention mechanism for CNN"
-    def __init__(self, channels: int, height: int, width: int, heads: int = 4):
+    def __init__(self, channels: int, height: int, width: int, heads: int = 8):
         super().__init__()
         self.heads = heads
         self.head_dim = channels // heads
@@ -71,7 +88,7 @@ class GlobalTransformerBlock(nn.Module):
     """
     Final reasoning layer: Every 7x7 patch talks to every other patch.
     """
-    def __init__(self, channels: int, heads: int = 8, dropout: float = 0.1):
+    def __init__(self, channels: int, heads: int = 16, dropout: float = 0.1):
         super().__init__()
         # PyTorch's optimized MultiheadAttention
         self.mha = nn.MultiheadAttention(embed_dim=channels, num_heads=heads, batch_first=True, dropout=dropout)
@@ -109,11 +126,13 @@ class CNNImageClassifier(nn.Module):
         self.features = nn.Sequential(
             nn.Conv2d(1, 48, 3, padding=1),
             nn.BatchNorm2d(48),
+            SEBlock(48),
             nn.ReLU(),
             MultiHeadAttentionPool2d(48, 28, 28, heads=8),
 
             nn.Conv2d(48, 96, 3, padding=1),
             nn.BatchNorm2d(96),
+            SEBlock(96),
             nn.ReLU(),
             MultiHeadAttentionPool2d(96, 14, 14, heads=16),
 
@@ -134,21 +153,27 @@ class CNNImageClassifier(nn.Module):
         return self.network(self.features(x))
 
 
-def train_model(model, train_loader, device, num_epochs: int = 10, time_budget_sec=600):
+def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_sec=600):
     "Implementation of the model training for CNN with Multi-Head Attention Mechanism"
     start_time = time.time()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
+    initial_lr = 0.001
+    optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.05)
 
     # CosineAnnealingLR: Gradually reduces LR to a minimum (eta_min) over T_max epochs
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=60, eta_min=1e-6)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
     
     # LR Warmup
     warmup_epochs = 5
-    lr_step = 0.001 / warmup_epochs
 
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     for epoch in range(num_epochs):
+        # Adjust LR for warmup
+        if epoch < warmup_epochs:
+            lr = initial_lr * (epoch + 1) / warmup_epochs
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = lr
+
         model.train()
         epoch_loss = 0
         batch_idx = 0
@@ -161,11 +186,6 @@ def train_model(model, train_loader, device, num_epochs: int = 10, time_budget_s
             loss.backward()
             optimizer.step()
             cur_time = time.time()
-            
-            # LR Warmup adjustment
-            if epoch < warmup_epochs:
-                optimizer.param_groups[0]['lr'] = lr_step * (epoch + 1)
-            
             if batch_idx % 100 == 0:
                 print(f"Epoch {epoch} | Batch {batch_idx} | Time so far: {cur_time - start_time:.2f}s")
             batch_idx += 1
