@@ -25,7 +25,7 @@ class MultiHeadAttentionPool2d(nn.Module):
         self.v_conv = nn.Conv2d(channels, channels, kernel_size=1)
 
         self.out_conv = nn.Conv2d(channels, channels, kernel_size=1)
-        self.norm = nn.BatchNorm2d(channels) # Changed from GroupNorm
+        self.norm = nn.BatchNorm2d(channels)
         self.skip = nn.AvgPool2d(kernel_size=2)
 
         self.scale = self.head_dim ** -0.5
@@ -109,12 +109,15 @@ class CNNImageClassifier(nn.Module):
             nn.Conv2d(1, 48, 3, padding=1),
             nn.BatchNorm2d(48),
             nn.ReLU(),
-            nn.Conv2d(48, 48, 3, padding=1), # Added layer
+            nn.Conv2d(48, 48, 3, padding=1),
             nn.BatchNorm2d(48),
             nn.ReLU(),
             MultiHeadAttentionPool2d(48, 28, 28, heads=8),
 
             nn.Conv2d(48, 96, 3, padding=1),
+            nn.BatchNorm2d(96),
+            nn.ReLU(),
+            nn.Conv2d(96, 96, 3, padding=1), # Added layer
             nn.BatchNorm2d(96),
             nn.ReLU(),
             MultiHeadAttentionPool2d(96, 14, 14, heads=16),
