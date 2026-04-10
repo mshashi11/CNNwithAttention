@@ -135,7 +135,7 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
     "Implementation of the model training for CNN with Multi-Head Attention Mechanism"
     start_time = time.time()
     initial_lr = 0.001
-    optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.01)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.05)
 
     # CosineAnnealingLR: Gradually reduces LR to a minimum (eta_min) over T_max epochs
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
