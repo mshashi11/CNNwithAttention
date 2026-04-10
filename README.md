@@ -45,10 +45,11 @@ The goal is to continue refining the multi-head attention model to improve its a
 
 ## Model updates
 
-### Mar 27, 2026 (Exp 27)
+### Mar 27, 2026 (Exp 31)
 
 Changes incorporated:
-1. Added a learned `pos_embed` to the `GlobalTransformerBlock` to provide spatial information to the transformer layer.
-2. Maintained successful configurations from Experiment 8: channels (48, 96), classification head (512 units with GELU activation), `BatchNorm2d` after `Conv2d`, Pre-Norm and Dropout (0.1) in `GlobalTransformerBlock`, MultiHead attention heads (8, 16) in pooling and 16 in transformer, and 5-epoch linear LR warmup.
+1. Added an additional 3x3 `Conv2d` + `BatchNorm2d` + `ReLU` layer in the first feature block to increase feature extraction depth.
+2. Switched from `GroupNorm` to `BatchNorm2d` in `MultiHeadAttentionPool2d` for better normalization stability.
+3. Maintained successful features from Exp 27: learned `pos_embed` in `GlobalTransformerBlock`, channels (48, 96), classification head (512, GELU), Pre-Norm and Dropout (0.1) in `GlobalTransformerBlock`, heads (8, 16) in pooling and 16 in transformer, and 5-epoch LR warmup.
 
-With these changes, the resulting accuracy on test dataset is now 94.76%, the highest achieved so far.
+With these changes, the resulting accuracy on test dataset is now 94.98%, the highest achieved so far.
