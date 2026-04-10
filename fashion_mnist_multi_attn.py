@@ -117,9 +117,6 @@ class CNNImageClassifier(nn.Module):
             nn.Conv2d(48, 96, 3, padding=1),
             nn.BatchNorm2d(96),
             nn.ReLU(),
-            nn.Conv2d(96, 96, 3, padding=1), # Added layer
-            nn.BatchNorm2d(96),
-            nn.ReLU(),
             MultiHeadAttentionPool2d(96, 14, 14, heads=16),
 
             # Reasoning Global Block
@@ -127,11 +124,11 @@ class CNNImageClassifier(nn.Module):
         )
         self.network = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(7*7*96, 512),
-            nn.BatchNorm1d(512),
+            nn.Linear(7*7*96, 1024), # Increased units
+            nn.BatchNorm1d(1024),
             nn.Dropout(0.20),
             nn.GELU(),
-            nn.Linear(512, num_classes)
+            nn.Linear(1024, num_classes)
         )
 
     def forward(self, x):
