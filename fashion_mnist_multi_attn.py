@@ -20,7 +20,7 @@ class MultiHeadAttentionPool2d(nn.Module):
 
         # 2. Multi-Head Projections
         # Q reduces spatial size (stride=2), K and V stay at full resolution
-        self.q_conv = nn.Conv2d(channels, channels, kernel_size=2, stride=2)
+        self.q_conv = nn.Conv2d(channels, channels, kernel_size=3, stride=2, padding=1)
         self.k_conv = nn.Conv2d(channels, channels, kernel_size=1)
         self.v_conv = nn.Conv2d(channels, channels, kernel_size=1)
 
@@ -107,15 +107,17 @@ class CNNImageClassifier(nn.Module):
             nn.Conv2d(1, 48, 3, padding=1),
             nn.BatchNorm2d(48),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(48, 28, 28, heads=12),
+            nn.Dropout2d(0.1),
+            MultiHeadAttentionPool2d(48, 28, 28, heads=8),
 
             nn.Conv2d(48, 96, 3, padding=1),
             nn.BatchNorm2d(96),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(96, 14, 14, heads=24),
+            nn.Dropout2d(0.1),
+            MultiHeadAttentionPool2d(96, 14, 14, heads=16),
 
             # Reasoning Global Block
-            GlobalTransformerBlock(96, heads=24)
+            GlobalTransformerBlock(96, heads=16)
         )
         self.network = nn.Sequential(
             nn.Flatten(),
@@ -182,7 +184,7 @@ def main():
     print(f"Device: {device}")
 
     model = CNNImageClassifier().to(device)
-    train_loader = common.get_training_data_loader(batch_size=256)
+    train_loader = common.get_training_data_loader(batch_size=512)
     start_time = time.time()
     train_model(model, train_loader, device, num_epochs=60, time_budget_sec=600)
     end_time = time.time()
