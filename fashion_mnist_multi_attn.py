@@ -136,24 +136,20 @@ class CNNImageClassifier(nn.Module):
 def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_sec=600):
     "Implementation of the model training for CNN with Multi-Head Attention Mechanism"
     start_time = time.time()
-    initial_lr = 0.001
-    optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.01)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
 
-    # CosineAnnealingLR: Gradually reduces LR to a minimum (eta_min) over T_max epochs
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
+    # OneCycleLR for faster convergence
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer, 
+        max_lr=0.0015, 
+        steps_per_epoch=len(train_loader), 
+        epochs=num_epochs,
+        pct_start=0.1
+    )
     
-    # LR Warmup
-    warmup_epochs = 5
-
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     for epoch in range(num_epochs):
-        # Adjust LR for warmup
-        if epoch < warmup_epochs:
-            lr = initial_lr * (epoch + 1) / warmup_epochs
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = lr
-
         model.train()
         epoch_loss = 0
         batch_idx = 0
@@ -165,6 +161,8 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
             epoch_loss += loss.item()
             loss.backward()
             optimizer.step()
+            scheduler.step() # Step per batch for OneCycleLR
+            
             cur_time = time.time()
             if batch_idx % 100 == 0:
                 print(f"Epoch {epoch} | Batch {batch_idx} | Time so far: {cur_time - start_time:.2f}s")
@@ -174,7 +172,6 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
                 print("Exiting training since training time budget exceeded")
                 return
 
-        scheduler.step()
         print(f"Epoch: {epoch} | Loss: {epoch_loss:.2f}")
 
 
