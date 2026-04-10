@@ -70,6 +70,7 @@ class GlobalTransformerBlock(nn.Module):
     """
     def __init__(self, channels: int, heads: int = 16, dropout: float = 0.1):
         super().__init__()
+        self.pos_embed = nn.Parameter(torch.randn(1, 49, channels) * 0.02)
         # PyTorch's optimized MultiheadAttention
         self.mha = nn.MultiheadAttention(embed_dim=channels, num_heads=heads, batch_first=True, dropout=dropout)
         self.norm1 = nn.LayerNorm(channels)
@@ -86,6 +87,7 @@ class GlobalTransformerBlock(nn.Module):
         B, C, H, W = x.shape
         # Reshape image to sequence: [B, 49, C]
         x_flat = x.view(B, C, -1).permute(0, 2, 1)
+        x_flat = x_flat + self.pos_embed
 
         # Attention + Residual (Pre-Norm)
         attn_out, _ = self.mha(self.norm1(x_flat), self.norm1(x_flat), self.norm1(x_flat))
@@ -104,22 +106,22 @@ class CNNImageClassifier(nn.Module):
     def __init__(self, num_classes=10):
         super().__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 56, 3, padding=1),
-            nn.BatchNorm2d(56),
+            nn.Conv2d(1, 48, 3, padding=1),
+            nn.BatchNorm2d(48),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(56, 28, 28, heads=8),
+            MultiHeadAttentionPool2d(48, 28, 28, heads=8),
 
-            nn.Conv2d(56, 112, 3, padding=1),
-            nn.BatchNorm2d(112),
+            nn.Conv2d(48, 96, 3, padding=1),
+            nn.BatchNorm2d(96),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(112, 14, 14, heads=16),
+            MultiHeadAttentionPool2d(96, 14, 14, heads=16),
 
             # Reasoning Global Block
-            GlobalTransformerBlock(112, heads=16)
+            GlobalTransformerBlock(96, heads=16)
         )
         self.network = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(7*7*112, 512),
+            nn.Linear(7*7*96, 512),
             nn.BatchNorm1d(512),
             nn.Dropout(0.20),
             nn.GELU(),
@@ -135,7 +137,7 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
     "Implementation of the model training for CNN with Multi-Head Attention Mechanism"
     start_time = time.time()
     initial_lr = 0.001
-    optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.05)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.01)
 
     # CosineAnnealingLR: Gradually reduces LR to a minimum (eta_min) over T_max epochs
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
