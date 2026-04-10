@@ -7,27 +7,9 @@ from torch import nn
 
 import common
 
-def drop_path(x, drop_prob: float = 0., training: bool = False):
-    if drop_prob == 0. or not training:
-        return x
-    keep_prob = 1 - drop_prob
-    shape = (x.shape[0],) + (1,) * (x.ndim - 1)
-    random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
-    random_tensor.floor_()  # binarize
-    output = x.div(keep_prob) * random_tensor
-    return output
-
-class DropPath(nn.Module):
-    def __init__(self, drop_prob=None):
-        super(DropPath, self).__init__()
-        self.drop_prob = drop_prob
-
-    def forward(self, x):
-        return drop_path(x, self.drop_prob, self.training)
-
 class MultiHeadAttentionPool2d(nn.Module):
     "Implementation of multi-head attention mechanism for CNN"
-    def __init__(self, channels: int, height: int, width: int, heads: int = 8, dropout: float = 0.1, drop_path: float = 0.1):
+    def __init__(self, channels: int, height: int, width: int, heads: int = 8):
         super().__init__()
         self.heads = heads
         self.head_dim = channels // heads
@@ -37,13 +19,12 @@ class MultiHeadAttentionPool2d(nn.Module):
         self.pos_embed = nn.Parameter(torch.randn(1, channels, height, width) * 0.02)
 
         # 2. Multi-Head Projections
+        # Q reduces spatial size (stride=2), K and V stay at full resolution
         self.q_conv = nn.Conv2d(channels, channels, kernel_size=2, stride=2)
         self.k_conv = nn.Conv2d(channels, channels, kernel_size=1)
         self.v_conv = nn.Conv2d(channels, channels, kernel_size=1)
 
         self.out_conv = nn.Conv2d(channels, channels, kernel_size=1)
-        self.attn_dropout = nn.Dropout(dropout)
-        self.drop_path = DropPath(drop_path)
         self.norm = nn.GroupNorm(num_groups=1, num_channels=channels)
         self.skip = nn.AvgPool2d(kernel_size=2)
 
@@ -71,7 +52,6 @@ class MultiHeadAttentionPool2d(nn.Module):
         # Scaled Dot-Product Attention
         attn = torch.matmul(Q, K) * self.scale # [B, heads, N_out, N_in]
         attn = torch.softmax(attn, dim=-1)
-        attn = self.attn_dropout(attn)
 
         # Weighted sum of values
         out = torch.matmul(attn, V) # [B, heads, N_out, head_dim]
@@ -81,14 +61,14 @@ class MultiHeadAttentionPool2d(nn.Module):
         out = self.out_conv(out)
 
         # Residual + Norm
-        return self.norm(self.drop_path(out) + self.skip(x))
+        return self.norm(out + self.skip(x))
 
 
 class GlobalTransformerBlock(nn.Module):
     """
     Final reasoning layer: Every 7x7 patch talks to every other patch.
     """
-    def __init__(self, channels: int, heads: int = 16, dropout: float = 0.1, drop_path: float = 0.1):
+    def __init__(self, channels: int, heads: int = 16, dropout: float = 0.1):
         super().__init__()
         # PyTorch's optimized MultiheadAttention
         self.mha = nn.MultiheadAttention(embed_dim=channels, num_heads=heads, batch_first=True, dropout=dropout)
@@ -101,7 +81,6 @@ class GlobalTransformerBlock(nn.Module):
             nn.Dropout(dropout)
         )
         self.norm2 = nn.LayerNorm(channels)
-        self.drop_path = DropPath(drop_path)
 
     def forward(self, x):
         B, C, H, W = x.shape
@@ -110,11 +89,11 @@ class GlobalTransformerBlock(nn.Module):
 
         # Attention + Residual (Pre-Norm)
         attn_out, _ = self.mha(self.norm1(x_flat), self.norm1(x_flat), self.norm1(x_flat))
-        x_flat = x_flat + self.drop_path(attn_out)
+        x_flat = x_flat + attn_out
 
         # Feed Forward + Residual (Pre-Norm)
         ffn_out = self.ffn(self.norm2(x_flat))
-        x_flat = x_flat + self.drop_path(ffn_out)
+        x_flat = x_flat + ffn_out
 
         # Back to image shape: [B, C, 7, 7]
         return x_flat.permute(0, 2, 1).view(B, C, H, W)
@@ -128,22 +107,26 @@ class CNNImageClassifier(nn.Module):
             nn.Conv2d(1, 48, 3, padding=1),
             nn.BatchNorm2d(48),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(48, 28, 28, heads=8, drop_path=0.05),
+            MultiHeadAttentionPool2d(48, 28, 28, heads=8),
 
             nn.Conv2d(48, 96, 3, padding=1),
             nn.BatchNorm2d(96),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(96, 14, 14, heads=16, drop_path=0.1),
+            MultiHeadAttentionPool2d(96, 14, 14, heads=16),
 
             # Reasoning Global Block
-            GlobalTransformerBlock(96, heads=16, drop_path=0.1)
+            GlobalTransformerBlock(96, heads=16)
         )
         self.network = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(7*7*96, 512),
-            nn.BatchNorm1d(512),
-            nn.Dropout(0.20),
+            nn.Linear(7*7*96, 1024),
+            nn.BatchNorm1d(1024),
             nn.GELU(),
+            nn.Dropout(0.30),
+            nn.Linear(1024, 512),
+            nn.BatchNorm1d(512),
+            nn.GELU(),
+            nn.Dropout(0.20),
             nn.Linear(512, num_classes)
         )
 
