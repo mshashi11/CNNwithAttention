@@ -76,7 +76,7 @@ class GlobalTransformerBlock(nn.Module):
         self.norm1 = nn.LayerNorm(channels)
         self.ffn = nn.Sequential(
             nn.Linear(channels, channels * 4),
-            nn.Mish(), # Mish instead of GELU
+            nn.GELU(),
             nn.Dropout(dropout),
             nn.Linear(channels * 4, channels),
             nn.Dropout(dropout)
@@ -106,28 +106,28 @@ class CNNImageClassifier(nn.Module):
     def __init__(self, num_classes=10):
         super().__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 48, 3, padding=1),
-            nn.BatchNorm2d(48),
-            nn.Mish(), # Mish instead of ReLU
-            nn.Conv2d(48, 48, 3, padding=1),
-            nn.BatchNorm2d(48),
-            nn.Mish(), # Mish instead of ReLU
-            MultiHeadAttentionPool2d(48, 28, 28, heads=8),
+            nn.Conv2d(1, 56, 3, padding=1),
+            nn.BatchNorm2d(56),
+            nn.ReLU(),
+            nn.Conv2d(56, 56, 3, padding=1),
+            nn.BatchNorm2d(56),
+            nn.ReLU(),
+            MultiHeadAttentionPool2d(56, 28, 28, heads=8),
 
-            nn.Conv2d(48, 96, 3, padding=1),
-            nn.BatchNorm2d(96),
-            nn.Mish(), # Mish instead of ReLU
-            MultiHeadAttentionPool2d(96, 14, 14, heads=16),
+            nn.Conv2d(56, 112, 3, padding=1),
+            nn.BatchNorm2d(112),
+            nn.ReLU(),
+            MultiHeadAttentionPool2d(112, 14, 14, heads=16),
 
             # Reasoning Global Block
-            GlobalTransformerBlock(96, heads=16)
+            GlobalTransformerBlock(112, heads=16)
         )
         self.network = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(7*7*96, 512),
+            nn.Linear(7*7*112, 512),
             nn.BatchNorm1d(512),
             nn.Dropout(0.20),
-            nn.Mish(), # Mish instead of GELU
+            nn.GELU(),
             nn.Linear(512, num_classes)
         )
 
