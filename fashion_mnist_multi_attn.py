@@ -106,7 +106,7 @@ class CNNImageClassifier(nn.Module):
     def __init__(self, num_classes=10):
         super().__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 64, 3, padding=1), # Increased channels
+            nn.Conv2d(1, 64, 3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.Conv2d(64, 64, 3, padding=1),
@@ -114,7 +114,10 @@ class CNNImageClassifier(nn.Module):
             nn.ReLU(),
             MultiHeadAttentionPool2d(64, 28, 28, heads=8),
 
-            nn.Conv2d(64, 128, 3, padding=1), # Increased channels
+            nn.Conv2d(64, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.Conv2d(128, 128, 3, padding=1), # Added layer
             nn.BatchNorm2d(128),
             nn.ReLU(),
             MultiHeadAttentionPool2d(128, 14, 14, heads=16),
@@ -187,7 +190,7 @@ def main():
     print(f"Device: {device}")
 
     model = CNNImageClassifier().to(device)
-    train_loader = common.get_training_data_loader(batch_size=384) # Adjusted batch size
+    train_loader = common.get_training_data_loader(batch_size=384)
     start_time = time.time()
     train_model(model, train_loader, device, num_epochs=60, time_budget_sec=600)
     end_time = time.time()
