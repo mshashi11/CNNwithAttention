@@ -76,7 +76,7 @@ class GlobalTransformerBlock(nn.Module):
         self.norm1 = nn.LayerNorm(channels)
         self.ffn = nn.Sequential(
             nn.Linear(channels, channels * 4),
-            nn.GELU(),
+            nn.Mish(), # Mish instead of GELU
             nn.Dropout(dropout),
             nn.Linear(channels * 4, channels),
             nn.Dropout(dropout)
@@ -108,15 +108,15 @@ class CNNImageClassifier(nn.Module):
         self.features = nn.Sequential(
             nn.Conv2d(1, 48, 3, padding=1),
             nn.BatchNorm2d(48),
-            nn.ReLU(),
+            nn.Mish(), # Mish instead of ReLU
             nn.Conv2d(48, 48, 3, padding=1),
             nn.BatchNorm2d(48),
-            nn.ReLU(),
+            nn.Mish(), # Mish instead of ReLU
             MultiHeadAttentionPool2d(48, 28, 28, heads=8),
 
             nn.Conv2d(48, 96, 3, padding=1),
             nn.BatchNorm2d(96),
-            nn.ReLU(),
+            nn.Mish(), # Mish instead of ReLU
             MultiHeadAttentionPool2d(96, 14, 14, heads=16),
 
             # Reasoning Global Block
@@ -126,8 +126,8 @@ class CNNImageClassifier(nn.Module):
             nn.Flatten(),
             nn.Linear(7*7*96, 512),
             nn.BatchNorm1d(512),
-            nn.Dropout(0.30), # Increased dropout
-            nn.GELU(),
+            nn.Dropout(0.20),
+            nn.Mish(), # Mish instead of GELU
             nn.Linear(512, num_classes)
         )
 
