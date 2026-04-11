@@ -109,17 +109,17 @@ class CNNImageClassifier(nn.Module):
             nn.Conv2d(1, 64, 3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
+            nn.Dropout2d(0.05), # Added Dropout2d
             nn.Conv2d(64, 64, 3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
+            nn.Dropout2d(0.05), # Added Dropout2d
             MultiHeadAttentionPool2d(64, 28, 28, heads=8),
 
             nn.Conv2d(64, 128, 3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.Conv2d(128, 128, 3, padding=1), # Added layer
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
+            nn.Dropout2d(0.05), # Added Dropout2d
             MultiHeadAttentionPool2d(128, 14, 14, heads=16),
 
             # Reasoning Global Block
