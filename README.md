@@ -45,10 +45,10 @@ The goal is to continue refining the multi-head attention model to improve its a
 
 ## Model updates
 
-### Mar 27, 2026 (Exp 39)
+### Mar 27, 2026 (Exp 41)
 
 Changes incorporated:
-1. Increased model capacity by expanding channels to (64, 128) and adjusted batch size to 384 to fit within GPU memory.
-2. Maintained successful features from Exp 31: extra 3x3 `Conv2d` layer in the first block, learned `pos_embed` in `GlobalTransformerBlock`, classification head (512, GELU), Pre-Norm and Dropout (0.1) in `GlobalTransformerBlock`, and heads (8, 16).
+1. Added `Dropout2d(0.05)` after each ReLU activation in the feature extraction layers for better regularization of convolutional features.
+2. Maintained successful features from Exp 39: expanded channels to (64, 128), batch size 384, extra 3x3 `Conv2d` layer in the first block, learned `pos_embed` in `GlobalTransformerBlock`, classification head (512, GELU), Pre-Norm and Dropout (0.1) in `GlobalTransformerBlock`, and heads (8, 16).
 
-With these changes, the resulting accuracy on test dataset is now 95.05%, the highest achieved so far.
+With these changes, the resulting accuracy on test dataset is now 95.08%, the highest achieved so far.
