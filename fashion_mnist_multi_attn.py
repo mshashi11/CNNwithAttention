@@ -106,25 +106,25 @@ class CNNImageClassifier(nn.Module):
     def __init__(self, num_classes=10):
         super().__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 56, 3, padding=1),
-            nn.BatchNorm2d(56),
+            nn.Conv2d(1, 48, 3, padding=1),
+            nn.BatchNorm2d(48),
             nn.ReLU(),
-            nn.Conv2d(56, 56, 3, padding=1),
-            nn.BatchNorm2d(56),
+            nn.Conv2d(48, 48, 3, padding=1),
+            nn.BatchNorm2d(48),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(56, 28, 28, heads=8),
+            MultiHeadAttentionPool2d(48, 28, 28, heads=8),
 
-            nn.Conv2d(56, 112, 3, padding=1),
-            nn.BatchNorm2d(112),
+            nn.Conv2d(48, 96, 3, padding=1),
+            nn.BatchNorm2d(96),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(112, 14, 14, heads=16),
+            MultiHeadAttentionPool2d(96, 14, 14, heads=16),
 
             # Reasoning Global Block
-            GlobalTransformerBlock(112, heads=16)
+            GlobalTransformerBlock(96, heads=16)
         )
         self.network = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(7*7*112, 512),
+            nn.Linear(7*7*96, 512),
             nn.BatchNorm1d(512),
             nn.Dropout(0.20),
             nn.GELU(),
@@ -148,7 +148,7 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
     # LR Warmup
     warmup_epochs = 5
 
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.05) # Reduced smoothing
 
     for epoch in range(num_epochs):
         # Adjust LR for warmup
