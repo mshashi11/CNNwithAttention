@@ -112,21 +112,21 @@ class CNNImageClassifier(nn.Module):
             nn.Conv2d(48, 48, 3, padding=1),
             nn.BatchNorm2d(48),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(48, 28, 28, heads=12),
+            MultiHeadAttentionPool2d(48, 28, 28, heads=8),
 
             nn.Conv2d(48, 96, 3, padding=1),
             nn.BatchNorm2d(96),
             nn.ReLU(),
-            MultiHeadAttentionPool2d(96, 14, 14, heads=24),
+            MultiHeadAttentionPool2d(96, 14, 14, heads=16),
 
             # Reasoning Global Block
-            GlobalTransformerBlock(96, heads=24)
+            GlobalTransformerBlock(96, heads=16)
         )
         self.network = nn.Sequential(
             nn.Flatten(),
             nn.Linear(7*7*96, 512),
             nn.BatchNorm1d(512),
-            nn.Dropout(0.20),
+            nn.Dropout(0.30), # Increased dropout
             nn.GELU(),
             nn.Linear(512, num_classes)
         )
@@ -187,7 +187,7 @@ def main():
     print(f"Device: {device}")
 
     model = CNNImageClassifier().to(device)
-    train_loader = common.get_training_data_loader(batch_size=384)
+    train_loader = common.get_training_data_loader(batch_size=512)
     start_time = time.time()
     train_model(model, train_loader, device, num_epochs=60, time_budget_sec=600)
     end_time = time.time()
