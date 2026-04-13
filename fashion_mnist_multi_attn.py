@@ -7,27 +7,6 @@ from torch import nn
 
 import common
 
-class ResidualBlock(nn.Module):
-    def __init__(self, channels, dropout=0.05):
-        super().__init__()
-        self.conv1 = nn.Conv2d(channels, channels, 3, padding=1)
-        self.bn1 = nn.BatchNorm2d(channels)
-        self.relu = nn.ReLU()
-        self.conv2 = nn.Conv2d(channels, channels, 3, padding=1)
-        self.bn2 = nn.BatchNorm2d(channels)
-        self.dropout = nn.Dropout2d(dropout)
-
-    def forward(self, x):
-        residual = x
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.dropout(out)
-        out += residual
-        return self.relu(out)
-
 class MultiHeadAttentionPool2d(nn.Module):
     "Implementation of multi-head attention mechanism for CNN"
     def __init__(self, channels: int, height: int, width: int, heads: int = 8):
@@ -52,14 +31,15 @@ class MultiHeadAttentionPool2d(nn.Module):
         self.scale = self.head_dim ** -0.5
 
     def forward(self, x):
-        "Forward propagation for the Attention Mechanism"
+        "Forward propagation for the Attention Mechanism (Pre-Norm)"
         B, C, H, W = x.shape
-        x_pos = x + self.pos_embed
+        x_norm = self.norm(x)
+        x_pos = x_norm + self.pos_embed
 
         # Generate Q, K, V
         Q = self.q_conv(x_pos) # [B, C, H/2, W/2]
         K = self.k_conv(x_pos) # [B, C, H, W]
-        V = self.v_conv(x)     # [B, C, H, W]
+        V = self.v_conv(x_norm)     # [B, C, H, W]
 
         B, _, H_out, W_out = Q.shape
         N_out = H_out * W_out
@@ -81,8 +61,8 @@ class MultiHeadAttentionPool2d(nn.Module):
         out = out.permute(0, 1, 3, 2).contiguous().view(B, C, H_out, W_out)
         out = self.out_conv(out)
 
-        # Residual + Norm
-        return self.norm(out + self.skip(x))
+        # Residual
+        return out + self.skip(x)
 
 
 class GlobalTransformerBlock(nn.Module):
@@ -130,13 +110,17 @@ class CNNImageClassifier(nn.Module):
             nn.Conv2d(1, 64, 3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            ResidualBlock(64),
+            nn.Dropout2d(0.05),
+            nn.Conv2d(64, 64, 3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Dropout2d(0.05),
             MultiHeadAttentionPool2d(64, 28, 28, heads=8),
 
             nn.Conv2d(64, 128, 3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            ResidualBlock(128),
+            nn.Dropout2d(0.05),
             MultiHeadAttentionPool2d(128, 14, 14, heads=16),
 
             # Reasoning Global Block
@@ -162,8 +146,8 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
     initial_lr = 0.001
     optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.01)
 
-    # CosineAnnealingLR: Gradually reduces LR to a minimum (eta_min) over T_max epochs
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
+    # CosineAnnealingLR with T_max adjusted to expected epoch count
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=40, eta_min=1e-6)
     
     # LR Warmup
     warmup_epochs = 5
@@ -211,7 +195,7 @@ def main():
     print(f"Device: {device}")
 
     model = CNNImageClassifier().to(device)
-    train_loader = common.get_training_data_loader(batch_size=320) # Adjusted batch size
+    train_loader = common.get_training_data_loader(batch_size=384)
     start_time = time.time()
     train_model(model, train_loader, device, num_epochs=60, time_budget_sec=600)
     end_time = time.time()
