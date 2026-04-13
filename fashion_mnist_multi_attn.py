@@ -127,11 +127,11 @@ class CNNImageClassifier(nn.Module):
         )
         self.network = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(7*7*128, 512),
-            nn.BatchNorm1d(512),
-            nn.Dropout(0.20),
+            nn.Linear(7*7*128, 1024), # Increased units
+            nn.BatchNorm1d(1024),
+            nn.Dropout(0.15), # Reduced dropout
             nn.GELU(),
-            nn.Linear(512, num_classes)
+            nn.Linear(1024, num_classes)
         )
 
     def forward(self, x):
@@ -145,8 +145,8 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
     initial_lr = 0.001
     optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.01)
 
-    # CosineAnnealingLR: Gradually reduces LR to a minimum (eta_min) over T_max epochs
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
+    # CosineAnnealingLR with T_max adjusted to expected epoch count
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=40, eta_min=1e-6)
     
     # LR Warmup
     warmup_epochs = 5
