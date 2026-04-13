@@ -67,48 +67,35 @@ class MultiHeadAttentionPool2d(nn.Module):
 class GlobalTransformerBlock(nn.Module):
     """
     Final reasoning layer: Every 7x7 patch talks to every other patch.
-    Two layers with 2x expansion.
     """
     def __init__(self, channels: int, heads: int = 16, dropout: float = 0.1):
         super().__init__()
         self.pos_embed = nn.Parameter(torch.randn(1, 49, channels) * 0.02)
-        
-        self.mha1 = nn.MultiheadAttention(embed_dim=channels, num_heads=heads, batch_first=True, dropout=dropout)
-        self.norm1_1 = nn.LayerNorm(channels)
-        self.ffn1 = nn.Sequential(
-            nn.Linear(channels, channels * 2),
+        # PyTorch's optimized MultiheadAttention
+        self.mha = nn.MultiheadAttention(embed_dim=channels, num_heads=heads, batch_first=True, dropout=dropout)
+        self.norm1 = nn.LayerNorm(channels)
+        self.ffn = nn.Sequential(
+            nn.Linear(channels, channels * 4),
             nn.GELU(),
             nn.Dropout(dropout),
-            nn.Linear(channels * 2, channels),
+            nn.Linear(channels * 4, channels),
             nn.Dropout(dropout)
         )
-        self.norm1_2 = nn.LayerNorm(channels)
-        
-        self.mha2 = nn.MultiheadAttention(embed_dim=channels, num_heads=heads, batch_first=True, dropout=dropout)
-        self.norm2_1 = nn.LayerNorm(channels)
-        self.ffn2 = nn.Sequential(
-            nn.Linear(channels, channels * 2),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(channels * 2, channels),
-            nn.Dropout(dropout)
-        )
-        self.norm2_2 = nn.LayerNorm(channels)
+        self.norm2 = nn.LayerNorm(channels)
 
     def forward(self, x):
         B, C, H, W = x.shape
+        # Reshape image to sequence: [B, 49, C]
         x_flat = x.view(B, C, -1).permute(0, 2, 1)
         x_flat = x_flat + self.pos_embed
 
-        # Layer 1 (Pre-Norm)
-        attn_out, _ = self.mha1(self.norm1_1(x_flat), self.norm1_1(x_flat), self.norm1_1(x_flat))
+        # Attention + Residual (Pre-Norm)
+        attn_out, _ = self.mha(self.norm1(x_flat), self.norm1(x_flat), self.norm1(x_flat))
         x_flat = x_flat + attn_out
-        x_flat = x_flat + self.ffn1(self.norm1_2(x_flat))
-        
-        # Layer 2 (Pre-Norm)
-        attn_out, _ = self.mha2(self.norm2_1(x_flat), self.norm2_1(x_flat), self.norm2_1(x_flat))
-        x_flat = x_flat + attn_out
-        x_flat = x_flat + self.ffn2(self.norm2_2(x_flat))
+
+        # Feed Forward + Residual (Pre-Norm)
+        ffn_out = self.ffn(self.norm2(x_flat))
+        x_flat = x_flat + ffn_out
 
         # Back to image shape: [B, C, 7, 7]
         return x_flat.permute(0, 2, 1).view(B, C, H, W)
@@ -119,28 +106,28 @@ class CNNImageClassifier(nn.Module):
     def __init__(self, num_classes=10):
         super().__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 64, 3, padding=1),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(1, 80, 3, padding=1), # Increased channels
+            nn.BatchNorm2d(80),
             nn.ReLU(),
             nn.Dropout2d(0.05),
-            nn.Conv2d(64, 64, 3, padding=1),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(80, 80, 3, padding=1),
+            nn.BatchNorm2d(80),
             nn.ReLU(),
             nn.Dropout2d(0.05),
-            MultiHeadAttentionPool2d(64, 28, 28, heads=8),
+            MultiHeadAttentionPool2d(80, 28, 28, heads=8),
 
-            nn.Conv2d(64, 128, 3, padding=1),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(80, 160, 3, padding=1), # Increased channels
+            nn.BatchNorm2d(160),
             nn.ReLU(),
             nn.Dropout2d(0.05),
-            MultiHeadAttentionPool2d(128, 14, 14, heads=16),
+            MultiHeadAttentionPool2d(160, 14, 14, heads=16),
 
             # Reasoning Global Block
-            GlobalTransformerBlock(128, heads=16)
+            GlobalTransformerBlock(160, heads=16)
         )
         self.network = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(7*7*128, 512),
+            nn.Linear(7*7*160, 512),
             nn.BatchNorm1d(512),
             nn.Dropout(0.20),
             nn.GELU(),
@@ -159,7 +146,7 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
     optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.01)
 
     # CosineAnnealingLR with T_max adjusted to expected epoch count
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=40, eta_min=1e-6)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=35, eta_min=1e-6)
     
     # LR Warmup
     warmup_epochs = 5
@@ -207,7 +194,7 @@ def main():
     print(f"Device: {device}")
 
     model = CNNImageClassifier().to(device)
-    train_loader = common.get_training_data_loader(batch_size=384)
+    train_loader = common.get_training_data_loader(batch_size=256) # Adjusted batch size
     start_time = time.time()
     train_model(model, train_loader, device, num_epochs=60, time_budget_sec=600)
     end_time = time.time()
