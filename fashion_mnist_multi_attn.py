@@ -31,15 +31,14 @@ class MultiHeadAttentionPool2d(nn.Module):
         self.scale = self.head_dim ** -0.5
 
     def forward(self, x):
-        "Forward propagation for the Attention Mechanism (Pre-Norm)"
+        "Forward propagation for the Attention Mechanism"
         B, C, H, W = x.shape
-        x_norm = self.norm(x)
-        x_pos = x_norm + self.pos_embed
+        x_pos = x + self.pos_embed
 
         # Generate Q, K, V
         Q = self.q_conv(x_pos) # [B, C, H/2, W/2]
         K = self.k_conv(x_pos) # [B, C, H, W]
-        V = self.v_conv(x_norm)     # [B, C, H, W]
+        V = self.v_conv(x)     # [B, C, H, W]
 
         B, _, H_out, W_out = Q.shape
         N_out = H_out * W_out
@@ -61,8 +60,8 @@ class MultiHeadAttentionPool2d(nn.Module):
         out = out.permute(0, 1, 3, 2).contiguous().view(B, C, H_out, W_out)
         out = self.out_conv(out)
 
-        # Residual
-        return out + self.skip(x)
+        # Residual + Norm
+        return self.norm(out + self.skip(x))
 
 
 class GlobalTransformerBlock(nn.Module):
@@ -147,7 +146,7 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
     optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.01)
 
     # CosineAnnealingLR with T_max adjusted to expected epoch count
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=40, eta_min=1e-6)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=35, eta_min=1e-6)
     
     # LR Warmup
     warmup_epochs = 5
@@ -195,7 +194,7 @@ def main():
     print(f"Device: {device}")
 
     model = CNNImageClassifier().to(device)
-    train_loader = common.get_training_data_loader(batch_size=384)
+    train_loader = common.get_training_data_loader(batch_size=256) # Adjusted batch size
     start_time = time.time()
     train_model(model, train_loader, device, num_epochs=60, time_budget_sec=600)
     end_time = time.time()
