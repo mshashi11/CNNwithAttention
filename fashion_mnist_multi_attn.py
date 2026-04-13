@@ -106,32 +106,32 @@ class CNNImageClassifier(nn.Module):
     def __init__(self, num_classes=10):
         super().__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 80, 3, padding=1), # Increased channels
-            nn.BatchNorm2d(80),
+            nn.Conv2d(1, 64, 3, padding=1),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.Dropout2d(0.05),
-            nn.Conv2d(80, 80, 3, padding=1),
-            nn.BatchNorm2d(80),
+            nn.Conv2d(64, 64, 3, padding=1),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.Dropout2d(0.05),
-            MultiHeadAttentionPool2d(80, 28, 28, heads=8),
+            MultiHeadAttentionPool2d(64, 28, 28, heads=8),
 
-            nn.Conv2d(80, 160, 3, padding=1), # Increased channels
+            nn.Conv2d(64, 160, 3, padding=1), # Increased Block 2 channels
             nn.BatchNorm2d(160),
             nn.ReLU(),
             nn.Dropout2d(0.05),
-            MultiHeadAttentionPool2d(160, 14, 14, heads=16),
+            MultiHeadAttentionPool2d(160, 14, 14, heads=20), # 160 divisible by 20
 
             # Reasoning Global Block
-            GlobalTransformerBlock(160, heads=16)
+            GlobalTransformerBlock(160, heads=20) # 160 divisible by 20
         )
         self.network = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(7*7*160, 512),
-            nn.BatchNorm1d(512),
+            nn.Linear(7*7*160, 1024), # Increased units
+            nn.BatchNorm1d(1024),
             nn.Dropout(0.20),
             nn.GELU(),
-            nn.Linear(512, num_classes)
+            nn.Linear(1024, num_classes)
         )
 
     def forward(self, x):
@@ -146,7 +146,7 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
     optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.01)
 
     # CosineAnnealingLR with T_max adjusted to expected epoch count
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=35, eta_min=1e-6)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=40, eta_min=1e-6)
     
     # LR Warmup
     warmup_epochs = 5
@@ -194,7 +194,7 @@ def main():
     print(f"Device: {device}")
 
     model = CNNImageClassifier().to(device)
-    train_loader = common.get_training_data_loader(batch_size=256) # Adjusted batch size
+    train_loader = common.get_training_data_loader(batch_size=320) # Adjusted batch size
     start_time = time.time()
     train_model(model, train_loader, device, num_epochs=60, time_budget_sec=600)
     end_time = time.time()
