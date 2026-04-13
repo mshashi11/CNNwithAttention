@@ -7,6 +7,27 @@ from torch import nn
 
 import common
 
+class ResidualBlock(nn.Module):
+    def __init__(self, channels, dropout=0.05):
+        super().__init__()
+        self.conv1 = nn.Conv2d(channels, channels, 3, padding=1)
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.relu = nn.ReLU()
+        self.conv2 = nn.Conv2d(channels, channels, 3, padding=1)
+        self.bn2 = nn.BatchNorm2d(channels)
+        self.dropout = nn.Dropout2d(dropout)
+
+    def forward(self, x):
+        residual = x
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.dropout(out)
+        out += residual
+        return self.relu(out)
+
 class MultiHeadAttentionPool2d(nn.Module):
     "Implementation of multi-head attention mechanism for CNN"
     def __init__(self, channels: int, height: int, width: int, heads: int = 8):
@@ -109,17 +130,13 @@ class CNNImageClassifier(nn.Module):
             nn.Conv2d(1, 64, 3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.Dropout2d(0.05),
-            nn.Conv2d(64, 64, 3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.Dropout2d(0.05),
+            ResidualBlock(64),
             MultiHeadAttentionPool2d(64, 28, 28, heads=8),
 
             nn.Conv2d(64, 128, 3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.Dropout2d(0.05),
+            ResidualBlock(128),
             MultiHeadAttentionPool2d(128, 14, 14, heads=16),
 
             # Reasoning Global Block
@@ -127,11 +144,11 @@ class CNNImageClassifier(nn.Module):
         )
         self.network = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(7*7*128, 1024), # Increased units
-            nn.BatchNorm1d(1024),
-            nn.Dropout(0.15), # Reduced dropout
+            nn.Linear(7*7*128, 512),
+            nn.BatchNorm1d(512),
+            nn.Dropout(0.20),
             nn.GELU(),
-            nn.Linear(1024, num_classes)
+            nn.Linear(512, num_classes)
         )
 
     def forward(self, x):
@@ -145,8 +162,8 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
     initial_lr = 0.001
     optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.01)
 
-    # CosineAnnealingLR with T_max adjusted to expected epoch count
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=40, eta_min=1e-6)
+    # CosineAnnealingLR: Gradually reduces LR to a minimum (eta_min) over T_max epochs
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
     
     # LR Warmup
     warmup_epochs = 5
@@ -194,7 +211,7 @@ def main():
     print(f"Device: {device}")
 
     model = CNNImageClassifier().to(device)
-    train_loader = common.get_training_data_loader(batch_size=384)
+    train_loader = common.get_training_data_loader(batch_size=320) # Adjusted batch size
     start_time = time.time()
     train_model(model, train_loader, device, num_epochs=60, time_budget_sec=600)
     end_time = time.time()
