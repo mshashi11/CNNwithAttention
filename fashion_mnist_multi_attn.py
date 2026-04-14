@@ -49,7 +49,7 @@ class MultiHeadAttentionPool2d(nn.Module):
         K = K.view(B, self.heads, self.head_dim, N_in)
         V = V.view(B, self.heads, self.head_dim, N_in).permute(0, 1, 3, 2)
 
-        # Scaled Dot-Product Attention
+        # ScalDot-Product Attention
         attn = torch.matmul(Q, K) * self.scale # [B, heads, N_out, N_in]
         attn = torch.softmax(attn, dim=-1)
 
@@ -106,28 +106,28 @@ class CNNImageClassifier(nn.Module):
     def __init__(self, num_classes=10):
         super().__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(1, 64, 3, padding=1),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(1, 72, 3, padding=1),
+            nn.BatchNorm2d(72),
             nn.ReLU(),
             nn.Dropout2d(0.05),
-            nn.Conv2d(64, 64, 3, padding=1),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(72, 72, 3, padding=1),
+            nn.BatchNorm2d(72),
             nn.ReLU(),
             nn.Dropout2d(0.05),
-            MultiHeadAttentionPool2d(64, 28, 28, heads=8),
+            MultiHeadAttentionPool2d(72, 28, 28, heads=9),
 
-            nn.Conv2d(64, 160, 3, padding=1), # Increased Block 2 channels
-            nn.BatchNorm2d(160),
+            nn.Conv2d(72, 184, 3, padding=1),
+            nn.BatchNorm2d(184),
             nn.ReLU(),
             nn.Dropout2d(0.05),
-            MultiHeadAttentionPool2d(160, 14, 14, heads=20), # 160 divisible by 20
+            MultiHeadAttentionPool2d(184, 14, 14, heads=23),
 
             # Reasoning Global Block
-            GlobalTransformerBlock(160, heads=20) # 160 divisible by 20
+            GlobalTransformerBlock(184, heads=23)
         )
         self.network = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(7*7*160, 1024), # Increased units
+            nn.Linear(7*7*184, 1024),
             nn.BatchNorm1d(1024),
             nn.Dropout(0.20),
             nn.GELU(),
@@ -146,7 +146,7 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
     optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.01)
 
     # CosineAnnealingLR with T_max adjusted to expected epoch count
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=40, eta_min=1e-6)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=35, eta_min=1e-6)
     
     # LR Warmup
     warmup_epochs = 5
@@ -194,7 +194,7 @@ def main():
     print(f"Device: {device}")
 
     model = CNNImageClassifier().to(device)
-    train_loader = common.get_training_data_loader(batch_size=320) # Adjusted batch size
+    train_loader = common.get_training_data_loader(batch_size=256)
     start_time = time.time()
     train_model(model, train_loader, device, num_epochs=60, time_budget_sec=600)
     end_time = time.time()
