@@ -114,6 +114,10 @@ class CNNImageClassifier(nn.Module):
             nn.BatchNorm2d(72),
             nn.ReLU(),
             nn.Dropout2d(0.03),
+            nn.Conv2d(72, 72, 3, padding=1), # Added 3rd layer for Exp 84
+            nn.BatchNorm2d(72),
+            nn.ReLU(),
+            nn.Dropout2d(0.03),
             MultiHeadAttentionPool2d(72, 28, 28, heads=9),
 
             nn.Conv2d(72, 184, 3, padding=1),
