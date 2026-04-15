@@ -51,4 +51,15 @@ Changes incorporated:
 1. Added `Dropout2d(0.05)` after each ReLU activation in the feature extraction layers for better regularization of convolutional features.
 2. Maintained successful features from Exp 39: expanded channels to (64, 128), batch size 384, extra 3x3 `Conv2d` layer in the first block, learned `pos_embed` in `GlobalTransformerBlock`, classification head (512, GELU), Pre-Norm and Dropout (0.1) in `GlobalTransformerBlock`, and heads (8, 16).
 
-With these changes, the resulting accuracy on test dataset is now 95.08%, the highest achieved so far.
+With these changes, the resulting accuracy on test dataset is now 95.08%.
+
+### Apr 14, 2026 (Exp 84)
+
+Building on the successes of Experiment 73 (95.16%) and Experiment 76 (95.17%), this experiment introduced additional depth to the first stage:
+1. Increased Block 1 channels to 72 (9 heads).
+2. Increased Block 2 channels to 184 (23 heads).
+3. Added a third 3x3 `Conv2d` layer in the first block for deeper feature extraction.
+4. Reduced `Dropout2d` in features to 0.03.
+5. Set Classification Head to 1024 units and batch size to 256.
+
+With these changes, the resulting accuracy on test dataset is now 95.19%, the highest achieved so far.

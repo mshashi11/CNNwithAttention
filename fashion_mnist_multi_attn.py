@@ -124,6 +124,10 @@ class CNNImageClassifier(nn.Module):
             nn.BatchNorm2d(184),
             nn.ReLU(),
             nn.Dropout2d(0.03),
+            nn.Conv2d(184, 184, 3, padding=1), # Added 2nd layer in Block 2 for Exp 85
+            nn.BatchNorm2d(184),
+            nn.ReLU(),
+            nn.Dropout2d(0.03),
             MultiHeadAttentionPool2d(184, 14, 14, heads=23),
 
             # Reasoning Global Block
