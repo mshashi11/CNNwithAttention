@@ -136,10 +136,10 @@ class CNNImageClassifier(nn.Module):
             nn.BatchNorm2d(184),
             nn.ReLU(),
             nn.Dropout2d(0.02),
-            MultiHeadAttentionPool2d(184, 14, 14, heads=8),
+            MultiHeadAttentionPool2d(184, 14, 14, heads=4),
 
             # Reasoning Global Block
-            GlobalTransformerBlock(184, heads=8)
+            GlobalTransformerBlock(184, heads=4)
 
         )
         self.network = nn.Sequential(
