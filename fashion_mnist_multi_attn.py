@@ -126,7 +126,7 @@ class CNNImageClassifier(nn.Module):
             nn.BatchNorm2d(72),
             nn.ReLU(),
             nn.Dropout2d(0.02),
-            MultiHeadAttentionPool2d(72, 28, 28, heads=9),
+            MultiHeadAttentionPool2d(72, 28, 28, heads=6),
 
             nn.Conv2d(72, 184, 3, padding=1),
             nn.BatchNorm2d(184),
