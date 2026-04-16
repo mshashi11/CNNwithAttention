@@ -109,31 +109,35 @@ class CNNImageClassifier(nn.Module):
             nn.Conv2d(1, 72, 3, padding=1),
             nn.BatchNorm2d(72),
             nn.ReLU(),
-            nn.Dropout2d(0.03),
+            nn.Dropout2d(0.02),
             nn.Conv2d(72, 72, 3, padding=1),
             nn.BatchNorm2d(72),
             nn.ReLU(),
-            nn.Dropout2d(0.03),
+            nn.Dropout2d(0.02),
             nn.Conv2d(72, 72, 3, padding=1),
             nn.BatchNorm2d(72),
             nn.ReLU(),
-            nn.Dropout2d(0.03),
-            nn.Conv2d(72, 72, 3, padding=1), # Added 4th layer in Block 1 for Exp 87
+            nn.Dropout2d(0.02),
+            nn.Conv2d(72, 72, 3, padding=1),
             nn.BatchNorm2d(72),
             nn.ReLU(),
-            nn.Dropout2d(0.03),
+            nn.Dropout2d(0.02),
+            nn.Conv2d(72, 72, 3, padding=1), # Added 5th layer in Block 1 for Exp 101
+            nn.BatchNorm2d(72),
+            nn.ReLU(),
+            nn.Dropout2d(0.02),
             MultiHeadAttentionPool2d(72, 28, 28, heads=9),
-
 
             nn.Conv2d(72, 184, 3, padding=1),
             nn.BatchNorm2d(184),
             nn.ReLU(),
-            nn.Dropout2d(0.03),
+            nn.Dropout2d(0.02),
             nn.Conv2d(184, 184, 3, padding=1), # Added 2nd layer in Block 2 for Exp 85
             nn.BatchNorm2d(184),
             nn.ReLU(),
-            nn.Dropout2d(0.03),
+            nn.Dropout2d(0.02),
             MultiHeadAttentionPool2d(184, 14, 14, heads=23),
+
 
             # Reasoning Global Block
             GlobalTransformerBlock(184, heads=23)
