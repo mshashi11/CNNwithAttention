@@ -53,13 +53,19 @@ Changes incorporated:
 
 With these changes, the resulting accuracy on test dataset is now 95.08%.
 
-### Apr 14, 2026 (Exp 84)
+### Apr 14, 2026 (Exp 112)
 
-Building on the successes of Experiment 73 (95.16%) and Experiment 76 (95.17%), this experiment introduced additional depth to the first stage:
-1. Increased Block 1 channels to 72 (9 heads).
-2. Increased Block 2 channels to 184 (23 heads).
-3. Added a third 3x3 `Conv2d` layer in the first block for deeper feature extraction.
-4. Reduced `Dropout2d` in features to 0.03.
-5. Set Classification Head to 1024 units and batch size to 256.
+After a series of experiments (Exp 44 to Exp 112), the model was significantly refined to achieve a new peak accuracy of **95.44%**.
 
-With these changes, the resulting accuracy on test dataset is now 95.19%, the highest achieved so far.
+Key improvements incorporated:
+1. **Architectural Depth:** Increased depth in both stages. Block 1 now uses five 3x3 `Conv2d` layers, and Block 2 uses two 3x3 `Conv2d` layers.
+2. **Channel Scaling:** Scaled Block 1 to 72 channels and Block 2 to 184 channels.
+3. **Attention Optimization:** Optimized the individual attention head receptive fields.
+   - Block 1: 6 heads (head_dim=12).
+   - Block 2 and Global Reasoning: 4 heads (head_dim=46).
+   - Larger head dimensions in later stages proved particularly effective for global reasoning.
+4. **Classification Head:** Expanded the classification head to 1024 units with a Dropout of 0.20 and GELU activation.
+5. **Regularization:** Fine-tuned `Dropout2d(0.02)` in features and added Gaussian Noise (0.02) to training inputs.
+6. **Training Protocol:** Used a batch size of 256 and `CosineAnnealingLR` with `T_max=35`.
+
+With these changes, the resulting accuracy on test dataset is now 95.44%, the highest achieved so far.

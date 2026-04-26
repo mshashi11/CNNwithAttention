@@ -1,0 +1,74 @@
+commit	Accuracy	Time	status	description
+fd68d6a	94.13	419.95	keep	baseline: add logging and scheduler.step()
+3a33fb6	94.25	600.08	keep	Exp 1: increase channels (48, 96) and classification head (512, GELU)
+be26baf	94.17	600.09	discard	Exp 2: add second GlobalTransformerBlock, increase dropout to 0.25
+6067932	94.03	600.07	discard	Exp 3: channels (64, 128), batch size 512
+2348a08	93.98	600.09	discard	Exp 4: GELU everywhere, channels (56, 112)
+4dda33a	93.85	600.09	discard	Exp 5: Mish activation, heads (8, 16), channels (48, 96)
+c551745	94.55	600.07	keep	Exp 6: Pre-Norm and Dropout in GlobalTransformerBlock
+9e0cae6	94.65	600.09	keep	Exp 7: add BatchNorm2d after Conv layers
+2a0c70c	94.74	600.14	keep	Exp 8: Increased attention heads (8, 16) and added LR warmup
+3d589a9	94.48	600.13	discard	Exp 8: Increased attention heads (8, 16) and added LR warmup
+3d589a9	94.54	600.12	discard	Exp 9: Increased attention heads (8, 16), LR warmup, lr=0.0005
+b136e55	94.54	600.12	discard	Exp 9: Updated LR to 0.0001, weight decay to 0.05, and attention heads to (8, 16)
+b136e55	94.54	600.12	discard	Exp 10: lr=0.0001, weight_decay=0.05, heads=(8,16), LR warmup
+b136e55	94.54	600.12	discard	Exp 11: lr=0.0001, weight_decay=0.05, heads=(8, 16), LR warmup, combined Exp 7 features
+7a458e3	93.74	600.10	discard	Exp 12: Added second GlobalTransformerBlock, increased attention heads, adjusted dropout.
+7a458e3	93.36	600.10	discard	Exp 13: Reverted to Exp 7 config, added second GlobalTransformerBlock, increased heads, adjusted dropout, reduced LR to 0.0001, increased weight decay to 0.05.
+6cd084d	94.53	600.09	discard	Exp 16: channels (64, 128), heads (8, 16), batch size 512, LR warmup, weight decay 0.05
+ee92c66	94.76	600.15	keep	Exp 27: Added learned pos_embed to GlobalTransformerBlock
+65db9e5	94.98	600.13	keep	Exp 31: Added one more 3x3 conv layer and switched to BatchNorm2d in MultiHeadAttentionPool2d
+cdd3ab9	95.05	600.06	keep	Exp 39: Increased channels to (64, 128) and adjusted batch size to 384 on Exp 31 architecture
+0e5fe23	95.08	600.12	keep	Exp 41: Added Dropout2d(0.05) to Exp 39 architecture
+ec02baf	95.09	600.11	keep	Exp 44: Added Gaussian Noise (0.02) to training input
+44fcb97	94.67	600.07	discard	Exp 64: Increased GlobalTransformerBlock FFN expansion to 8x on Exp 44 architecture
+3bfa7d6	95.11	600.14	keep	Exp 71: Increased Block 2 channels to 160 and head units to 1024 on Exp 44 architecture
+87e92d0	94.84	600.09	discard	Exp 72: Increased Gaussian Noise to 0.025 and T_max to 37 on Exp 71 architecture
+302891	95.16	600.10	keep	Exp 73: Increased channels to (72, 184) and heads to (9, 23) on Exp 71 architecture
+e9cc8fa	94.77	600.08	discard	Exp 74: Increased channels to (80, 192) and heads to (10, 24) on Exp 73 architecture
+309728	94.98	600.13	discard	Exp 75: Increased label smoothing to 0.12 on Exp 73 architecture
+313140	95.17	600.06	keep	Exp 76: Reduced Dropout2d to 0.03 on Exp 73 architecture
+2ab8133	95.10	600.11	discard	Exp 77: Reduced Dropout2d to 0.02 on Exp 76 architecture
+319978	94.83	600.09	discard	Exp 78: Increased Block 2 to 224 channels and added AdaptiveAvgPool2d(5) on Exp 76 architecture
+329417	95.06	600.06	discard	Exp 80: Added SEBlock after each ReLU in features on Exp 76 architecture
+332725	94.94	600.08	discard	Exp 81: Added DropPath(0.05) to GlobalTransformerBlock and increased head dropout to 0.25 on Exp 76 architecture
+340880	94.89	600.12	discard	Exp 82: Increased head count (dim 4) in all attention layers on Exp 76 architecture
+343020	94.92	600.05	discard	Exp 83: Increased classification head to 1280 units and dropout to 0.25 on Exp 76 architecture
+346431	95.19	600.12	keep	Exp 84: Added 3rd conv layer to the first block on Exp 76 architecture
+f35ad8e	95.26	600.09	keep	Exp 85: Added 2nd conv layer to the second block on Exp 84 architecture
+354786	95.22	600.07	discard	Exp 86: Added 3rd conv layer to the second block on Exp 85 architecture
+b9361ab	95.31	600.06	keep	Exp 87: Added 4th conv layer to the first block on Exp 85 architecture
+360738	95.20	600.08	discard	Exp 88: Added 5th conv layer to the first block on Exp 87 architecture
+363563	95.08	600.14	discard	Exp 89: 3x3 q_conv in MultiHeadAttentionPool2d on Exp 87 architecture
+366757	95.07	600.13	discard	Exp 90: Applied GlobalTransformerBlock twice (shared weights) on Exp 87 architecture
+369391	95.11	600.10	discard	Exp 91: Increased Block 2 to 192 channels (24 heads) on Exp 87 architecture
+372314	95.16	600.07	discard	Exp 92: Increased Block 1 to 80 channels (10 heads) on Exp 87 architecture
+375049	95.09	600.07	discard	Exp 93: Added conv layer after AttentionPool in Block 2 on Exp 87 architecture
+377968	95.00	600.06	discard	Exp 94: 3x3 conv for Q, K, V in MultiHeadAttentionPool2d on Exp 87 architecture
+380593	95.10	600.07	discard	Exp 95: Added second non-shared GlobalTransformerBlock on Exp 87 architecture
+383414	95.14	600.11	discard	Exp 96: Increased Block 1 heads to 12 (dim 6) on Exp 87 architecture
+390672	95.30	600.10	discard	Exp 97: Decreased Block 1 heads to 6 (dim 12) on Exp 87 architecture
+394081	95.25	600.08	discard	Exp 98: Block 2 with 160 channels (20 heads) and 3 layers on Exp 87 architecture
+397403	95.11	600.09	discard	Exp 99: Two reasoning layers (FFN 4x, 2x) on Exp 87 architecture
+400225	95.12	600.08	discard	Exp 100: Set bias=False in all conv layers on Exp 87 architecture
+1c2380c	95.34	600.13	keep	Exp 101: 5 layers in Block 1 and 0.02 dropout on Exp 87 architecture
+406083	95.27	600.11	discard	Exp 102: Added 3rd conv layer to the second block on Exp 101 architecture
+408804	95.28	600.12	discard	Exp 103: Added 6th conv layer to the first block on Exp 101 architecture
+411520	95.16	600.16	discard	Exp 104: Increased classification head to 1152 units on Exp 101 architecture
+414344	95.25	600.11	discard	Exp 105: head_dim=12 everywhere (6 and 15 heads) on Exp 101 architecture
+417758	95.25	600.14	discard	Exp 106: Added SEBlock in the middle of Block 1 on Exp 101 architecture
+420572	95.20	600.12	discard	Exp 107: Reduced head dropout to 0.15 on Exp 101 architecture
+788f5ed	95.38	600.08	keep	Exp 108: Decreased Block 1 heads to 6 (dim 12) on Exp 101 architecture
+423397	95.38	600.08	keep	Exp 108: Decreased Block 1 heads to 6 (dim 12) on Exp 101 architecture
+426626	95.25	600.09	discard	Exp 109: Decreased Block 1 heads to 4 (dim 18) on Exp 108 architecture
+430225	95.30	600.07	discard	Exp 110: Decreased Block 1 heads to 8 (dim 9) on Exp 108 architecture
+be7b10d	95.40	600.08	keep	Exp 111: Decreased Block 2 and Global heads to 8 (dim 23) on Exp 108 architecture
+433136	95.40	600.08	keep	Exp 111: Decreased Block 2 and Global heads to 8 (dim 23) on Exp 108 architecture
+b1cd9a3	95.44	600.10	keep	Exp 112: Decreased Block 2 and Global heads to 4 (dim 46) on Exp 111 architecture
+436647	95.44	600.10	keep	Exp 112: Decreased Block 2 and Global heads to 4 (dim 46) on Exp 111 architecture
+440528	95.37	600.12	discard	Exp 113: Added 3rd conv layer to the second block on Exp 112 architecture
+449556	95.41	600.07	discard	Exp 114: Decreased Block 2 and Global heads to 2 (dim 92) on Exp 112 architecture
+453539	95.32	600.10	discard	Exp 115: Added 6th conv layer to the first block on Exp 112 architecture
+456985	95.37	600.07	discard	Exp 116: Increased Block 1 to 78 channels (6 heads) on Exp 112 architecture
+460541	95.35	600.10	discard	Exp 117: FFN expansion factor 5 in GlobalTransformerBlock on Exp 112 architecture
+465109	95.30	600.06	discard	Exp 118: Replaced ReLU with PReLU in features on Exp 112 architecture
