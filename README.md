@@ -21,7 +21,12 @@ CNN implementation in which the Max Pool layer is replaced by a Single-Head Atte
 
 ### fashion_mnist_multi_attn.py
 
-CNN implementation in which the Max Pool layer is replaced by a Multi-Headed Attention Mechanism.
+A generic CNN implementation with Multi-Headed Attention mechanisms. Although the filename retains "fashion_mnist" for compatibility, the script is now dataset-agnostic and supports multiple image classification tasks.
+
+**Usage:**
+```bash
+./fashion_mnist_multi_attn.py --dataset [fashion_mnist|cifar10] --batch_size 256
+```
 
 
 ## Hardware configuration

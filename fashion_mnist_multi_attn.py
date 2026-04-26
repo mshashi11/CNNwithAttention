@@ -1,14 +1,16 @@
 #!/usr/bin/python3
-"Implementation of CNN model with Multi-Head Attention Mechanism for Fashion MNIST dataset"
+"Implementation of a generic CNN model with Multi-Head Attention Mechanisms"
 
 import time
 import torch
 from torch import nn
+import torchvision
+from torchvision import transforms
 
 import common
 
 class MultiHeadAttentionPool2d(nn.Module):
-    "Implementation of multi-head attention mechanism for CNN"
+    "Implementation of multi-head attention mechanism for CNN spatial downsampling"
     def __init__(self, channels: int, height: int, width: int, heads: int = 8):
         super().__init__()
         self.heads = heads
@@ -49,7 +51,7 @@ class MultiHeadAttentionPool2d(nn.Module):
         K = K.view(B, self.heads, self.head_dim, N_in)
         V = V.view(B, self.heads, self.head_dim, N_in).permute(0, 1, 3, 2)
 
-        # ScalDot-Product Attention
+        # Scaled Dot-Product Attention
         attn = torch.matmul(Q, K) * self.scale # [B, heads, N_out, N_in]
         attn = torch.softmax(attn, dim=-1)
 
@@ -66,11 +68,13 @@ class MultiHeadAttentionPool2d(nn.Module):
 
 class GlobalTransformerBlock(nn.Module):
     """
-    Final reasoning layer: Every 7x7 patch talks to every other patch.
+    Final reasoning layer: Every patch talks to every other patch.
+    Generic version supporting arbitrary spatial dimensions.
     """
-    def __init__(self, channels: int, heads: int = 16, dropout: float = 0.1):
+    def __init__(self, channels: int, height: int, width: int, heads: int = 16, dropout: float = 0.1):
         super().__init__()
-        self.pos_embed = nn.Parameter(torch.randn(1, 49, channels) * 0.02)
+        self.seq_len = height * width
+        self.pos_embed = nn.Parameter(torch.randn(1, self.seq_len, channels) * 0.02)
         # PyTorch's optimized MultiheadAttention
         self.mha = nn.MultiheadAttention(embed_dim=channels, num_heads=heads, batch_first=True, dropout=dropout)
         self.norm1 = nn.LayerNorm(channels)
@@ -85,7 +89,7 @@ class GlobalTransformerBlock(nn.Module):
 
     def forward(self, x):
         B, C, H, W = x.shape
-        # Reshape image to sequence: [B, 49, C]
+        # Reshape image to sequence: [B, H*W, C]
         x_flat = x.view(B, C, -1).permute(0, 2, 1)
         x_flat = x_flat + self.pos_embed
 
@@ -97,16 +101,21 @@ class GlobalTransformerBlock(nn.Module):
         ffn_out = self.ffn(self.norm2(x_flat))
         x_flat = x_flat + ffn_out
 
-        # Back to image shape: [B, C, 7, 7]
+        # Back to image shape: [B, C, H, W]
         return x_flat.permute(0, 2, 1).view(B, C, H, W)
 
 
 class CNNImageClassifier(nn.Module):
-    "Implementation of CNN model with Multi-Head Attention Mechanism"
-    def __init__(self, num_classes=10):
+    "Generic CNN model with Multi-Head Attention Mechanism"
+    def __init__(self, in_channels=1, img_size=28, num_classes=10):
         super().__init__()
-        self.features = nn.Sequential(
-            nn.Conv2d(1, 72, 3, padding=1),
+        
+        # Track spatial size
+        curr_s = img_size
+        
+        # Block 1: Deep Feature Extraction (5 layers)
+        self.block1 = nn.Sequential(
+            nn.Conv2d(in_channels, 72, 3, padding=1),
             nn.BatchNorm2d(72),
             nn.ReLU(),
             nn.Dropout2d(0.02),
@@ -122,29 +131,39 @@ class CNNImageClassifier(nn.Module):
             nn.BatchNorm2d(72),
             nn.ReLU(),
             nn.Dropout2d(0.02),
-            nn.Conv2d(72, 72, 3, padding=1), # Added 5th layer in Block 1 for Exp 101
+            nn.Conv2d(72, 72, 3, padding=1),
             nn.BatchNorm2d(72),
             nn.ReLU(),
             nn.Dropout2d(0.02),
-            MultiHeadAttentionPool2d(72, 28, 28, heads=6),
-
+        )
+        
+        # Pool 1
+        self.pool1 = MultiHeadAttentionPool2d(72, curr_s, curr_s, heads=6)
+        curr_s //= 2
+        
+        # Block 2: Higher Level Features (2 layers)
+        self.block2 = nn.Sequential(
             nn.Conv2d(72, 184, 3, padding=1),
             nn.BatchNorm2d(184),
             nn.ReLU(),
             nn.Dropout2d(0.02),
-            nn.Conv2d(184, 184, 3, padding=1), # Added 2nd layer in Block 2 for Exp 85
+            nn.Conv2d(184, 184, 3, padding=1),
             nn.BatchNorm2d(184),
             nn.ReLU(),
             nn.Dropout2d(0.02),
-            MultiHeadAttentionPool2d(184, 14, 14, heads=4),
-
-            # Reasoning Global Block
-            GlobalTransformerBlock(184, heads=4)
-
         )
-        self.network = nn.Sequential(
+        
+        # Pool 2
+        self.pool2 = MultiHeadAttentionPool2d(184, curr_s, curr_s, heads=4)
+        curr_s //= 2
+        
+        # Global Reasoning Block
+        self.global_block = GlobalTransformerBlock(184, curr_s, curr_s, heads=4)
+        
+        # Classification Head
+        self.head = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(7*7*184, 1024),
+            nn.Linear(curr_s * curr_s * 184, 1024),
             nn.BatchNorm1d(1024),
             nn.Dropout(0.20),
             nn.GELU(),
@@ -152,26 +171,74 @@ class CNNImageClassifier(nn.Module):
         )
 
     def forward(self, x):
-        "Forward propagation for this CNN model"
-        return self.network(self.features(x))
+        "Forward propagation"
+        x = self.block1(x)
+        x = self.pool1(x)
+        x = self.block2(x)
+        x = self.pool2(x)
+        x = self.global_block(x)
+        return self.head(x)
 
 
-def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_sec=600):
-    "Implementation of the model training for CNN with Multi-Head Attention Mechanism"
+def get_data_loaders(dataset_name='fashion_mnist', batch_size=256):
+    "Generic function to get data loaders for different datasets"
+    if dataset_name == 'fashion_mnist':
+        train_transform = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation(degrees=5),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,), (0.5,))
+        ])
+        test_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,), (0.5,))
+        ])
+        
+        train_set = torchvision.datasets.FashionMNIST(root='./data', train=True, download=True, transform=train_transform)
+        test_set = torchvision.datasets.FashionMNIST(root='./data', train=False, download=True, transform=test_transform)
+        
+        in_channels = 1
+        img_size = 28
+        num_classes = 10
+        
+    elif dataset_name == 'cifar10':
+        train_transform = transforms.Compose([
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomCrop(32, padding=4),
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+        ])
+        test_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+        ])
+        
+        train_set = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=train_transform)
+        test_set = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=test_transform)
+        
+        in_channels = 3
+        img_size = 32
+        num_classes = 10
+    else:
+        raise ValueError(f"Dataset {dataset_name} not supported")
+
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=4)
+    
+    return train_loader, test_loader, in_channels, img_size, num_classes
+
+
+def train_model(model, train_loader, device, num_epochs=60, time_budget_sec=600):
+    "Generic training loop"
     start_time = time.time()
     initial_lr = 0.001
     optimizer = torch.optim.AdamW(model.parameters(), lr=initial_lr, weight_decay=0.01)
-
-    # CosineAnnealingLR with T_max adjusted to expected epoch count
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=35, eta_min=1e-6)
     
-    # LR Warmup
     warmup_epochs = 5
-
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     for epoch in range(num_epochs):
-        # Adjust LR for warmup
         if epoch < warmup_epochs:
             lr = initial_lr * (epoch + 1) / warmup_epochs
             for param_group in optimizer.param_groups:
@@ -179,8 +246,7 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
 
         model.train()
         epoch_loss = 0
-        batch_idx = 0
-        for batch_x, batch_y in train_loader:
+        for batch_idx, (batch_x, batch_y) in enumerate(train_loader):
             batch_x, batch_y = batch_x.to(device), batch_y.to(device)
             
             # Add Gaussian Noise during training
@@ -192,11 +258,11 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
             epoch_loss += loss.item()
             loss.backward()
             optimizer.step()
+            
             cur_time = time.time()
             if batch_idx % 100 == 0:
                 print(f"Epoch {epoch} | Batch {batch_idx} | Time so far: {cur_time - start_time:.2f}s")
-            batch_idx += 1
-            # Check if the time budget has expired
+            
             if cur_time - start_time >= time_budget_sec:
                 print("Exiting training since training time budget exceeded")
                 return
@@ -206,23 +272,30 @@ def train_model(model, train_loader, device, num_epochs: int = 60, time_budget_s
 
 
 def main():
-    "Main function of the script, execution starts here"
+    "Main function"
+    import argparse
+    parser = argparse.ArgumentParser(description='Train generic CNN-Attention model')
+    parser.add_argument('--dataset', type=str, default='fashion_mnist', choices=['fashion_mnist', 'cifar10'], help='Dataset to use')
+    parser.add_argument('--batch_size', type=str, default='256', help='Batch size')
+    args = parser.parse_args()
+    
+    batch_size = int(args.batch_size)
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device: {device}")
+    print(f"Device: {device} | Dataset: {args.dataset}")
 
-    model = CNNImageClassifier().to(device)
-    train_loader = common.get_training_data_loader(batch_size=256)
+    train_loader, test_loader, in_channels, img_size, num_classes = get_data_loaders(args.dataset, batch_size)
+    
+    model = CNNImageClassifier(in_channels=in_channels, img_size=img_size, num_classes=num_classes).to(device)
+    
     start_time = time.time()
     train_model(model, train_loader, device, num_epochs=60, time_budget_sec=600)
     end_time = time.time()
 
-    # Evaluate on test set
-    test_loader = common.get_testing_data_loader()
     test_acc = common.evaluate_accuracy(model, test_loader, device)
     print("---Summary---")
     print(f"Accuracy: {test_acc*100:.2f}\nTime: {(end_time - start_time):.2f}")
 
 
 if __name__ == '__main__':
-    # Call the main function
     main()
